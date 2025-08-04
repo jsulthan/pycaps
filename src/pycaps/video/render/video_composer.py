@@ -45,7 +45,16 @@ class VideoComposer:
             raise RuntimeError(f"Could not read valid properties from video: {self._input}")
 
         rotation = get_rotation(self._input)
-        if rotation == 90:
+        logger().debug(f"Raw video dimensions: {w}x{h}, detected rotation: {rotation}")
+        
+        # Force portrait orientation (9:16) by ignoring rotation metadata for vertical videos
+        # If the raw data is already portrait (h > w), keep it portrait regardless of rotation metadata
+        if h > w:
+            # Raw data is portrait, keep it portrait
+            self._rotation_flag = None
+            self._input_size = (w, h)
+            logger().debug(f"Forcing portrait orientation, ignoring rotation metadata")
+        elif rotation == 90:
             self._rotation_flag = cv2.ROTATE_90_COUNTERCLOCKWISE
             self._input_size = (h, w)
         elif rotation == 180:
@@ -58,7 +67,7 @@ class VideoComposer:
             self._rotation_flag = None
             self._input_size = (w, h)
 
-        logger().debug(f"Video dimensions: {self._input_size}")
+        logger().debug(f"Final video dimensions after rotation: {self._input_size}")
         cap.release()
 
         self._output_from_frame = 0

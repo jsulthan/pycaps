@@ -2,6 +2,8 @@ import typer
 from typing import Optional
 from pycaps.logger import set_logging_level
 import logging
+import os
+from datetime import datetime
 from pycaps.pipeline import JsonConfigLoader
 from pycaps.common import VideoQuality
 from pycaps.layout import VerticalAlignmentType, SubtitleLayoutOptions
@@ -79,7 +81,22 @@ def render(
         typer.echo(f"Rendering {input} with config file {config_file}...")
         builder = JsonConfigLoader(config_file).load(False)
         
-    if output: builder.with_output_video(output)
+    # Handle output path with automatic directory creation
+    if not output:
+        # Create default output path with timestamp in its own folder
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        template_prefix = template_name.replace('-', '_') if template_name else 'default'
+        input_name = os.path.splitext(os.path.basename(input))[0]
+        folder_name = f"{input_name}_{template_prefix}_{timestamp}"
+        output = f"vids/output/{folder_name}/{input_name}_{template_prefix}_{timestamp}.mp4"
+    
+    # Ensure output directory exists
+    output_dir = os.path.dirname(output)
+    if output_dir and not os.path.exists(output_dir):
+        os.makedirs(output_dir, exist_ok=True)
+        typer.echo(f"Created output directory: {output_dir}")
+    
+    builder.with_output_video(output)
     if style: builder.add_css_content(_parse_styles(style))
     # TODO: this has a little issue (if you set lang via js + whisper model by cli, it will change the lang to None)
     if language or whisper_model: builder.with_whisper_config(language=language, model_size=whisper_model if whisper_model else "base")
