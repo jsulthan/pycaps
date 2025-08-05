@@ -4,18 +4,20 @@ from pycaps.common import Document, Segment, Line, Word, TimeFragment
 from pycaps.logger import logger
 
 class WhisperAudioTranscriber(AudioTranscriber):
-    def __init__(self, model_size: str = "base", language: Optional[str] = None, model: Optional[Any] = None):
+    def __init__(self, model_size: str = "base", language: Optional[str] = None, model: Optional[Any] = None, device: Optional[str] = None):
         """
         Transcribes audio using OpenAI's Whisper model.
 
         Args:
-            model_size: Size of the Whisper model to use (e.g., "tiny", "base").
+            model_size: Size of the Whisper model to use (e.g., "tiny", "base", "turbo").
             language: Language of the audio (e.g., "en", "es").
             model: (Optional) A pre-loaded Whisper model instance. If provided, model_size is ignored.
+            device: Device to run the model on (e.g., "cuda", "cpu"). If None, auto-detects.
         """
         self._model_size = model_size
         self._language = language
         self._model = model
+        self._device = device
 
     def transcribe(self, audio_path: str) -> Document:
         """
@@ -76,10 +78,16 @@ class WhisperAudioTranscriber(AudioTranscriber):
         import whisper
 
         try:
-            self._model = whisper.load_model(self._model_size)
+            # Load model with device specification if provided
+            if self._device:
+                self._model = whisper.load_model(self._model_size, device=self._device)
+                logger().info(f"Loaded Whisper model '{self._model_size}' on device: {self._device}")
+            else:
+                self._model = whisper.load_model(self._model_size)
+                logger().info(f"Loaded Whisper model '{self._model_size}' with auto-detected device")
             return self._model
         except Exception as e:
             raise RuntimeError(
-                f"Error loading Whisper model (size: {self._model_size}): {e}\n" 
+                f"Error loading Whisper model (size: {self._model_size}, device: {self._device}): {e}\n" 
                 f"Ensure Whisper is installed and models are available (or can be downloaded)."
             )
